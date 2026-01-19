@@ -29,7 +29,7 @@ class CreditCardSerializer(serializers.ModelSerializer):
             'cut_off_date',
             'payment_date',
         ]
-        read_only_fields = ['id', 'used', 'available']
+        read_only_fields = ['id', 'available']
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
