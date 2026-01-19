@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User
+from .models import User, UserSettings
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -10,6 +10,14 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'email', 'first_name', 'last_name']
         read_only_fields = ['id']
+
+
+class UserSettingsSerializer(serializers.ModelSerializer):
+    """Serializer para la configuración del usuario."""
+
+    class Meta:
+        model = UserSettings
+        fields = ['exchange_rate']
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

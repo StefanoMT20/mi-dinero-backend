@@ -5,7 +5,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import CustomTokenObtainPairSerializer, UserSerializer
+from .models import UserSettings
+from .serializers import CustomTokenObtainPairSerializer, UserSerializer, UserSettingsSerializer
 
 
 class LoginView(TokenObtainPairView):
@@ -41,4 +42,27 @@ class MeView(APIView):
 
     def get(self, request):
         serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+
+
+class UserSettingsView(APIView):
+    """Vista para obtener y actualizar la configuración del usuario."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        settings, created = UserSettings.objects.get_or_create(
+            user=request.user,
+            defaults={'exchange_rate': 3.75}
+        )
+        serializer = UserSettingsSerializer(settings)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        settings, created = UserSettings.objects.get_or_create(
+            user=request.user,
+            defaults={'exchange_rate': 3.75}
+        )
+        serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(serializer.data)

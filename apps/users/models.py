@@ -47,3 +47,30 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+class UserSettings(models.Model):
+    """Configuración del usuario."""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='settings',
+        verbose_name='Usuario'
+    )
+    exchange_rate = models.DecimalField(
+        'Tipo de cambio',
+        max_digits=6,
+        decimal_places=4,
+        default=3.7500,
+        help_text='Soles por dólar (ej: 3.75 significa $1 = S/3.75)'
+    )
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración de usuario'
+        verbose_name_plural = 'Configuraciones de usuarios'
+
+    def __str__(self):
+        return f"Settings - {self.user.email}"

@@ -59,6 +59,11 @@ class CreditCard(models.Model):
         ('gradient3', 'Gradiente 3'),
     ]
 
+    CURRENCY_CHOICES = [
+        ('PEN', 'Soles'),
+        ('USD', 'Dólares'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -74,8 +79,22 @@ class CreditCard(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0)]
     )
-    used = models.DecimalField(
-        'Monto utilizado',
+    currency = models.CharField(
+        'Moneda de la línea',
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='PEN',
+        help_text='Moneda en la que está expresado el límite de crédito'
+    )
+    used_pen = models.DecimalField(
+        'Consumo en soles',
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
+    used_usd = models.DecimalField(
+        'Consumo en dólares',
         max_digits=12,
         decimal_places=2,
         default=0,
@@ -101,14 +120,14 @@ class CreditCard(models.Model):
     def __str__(self):
         return f"{self.name} (*{self.last_four_digits})"
 
-    @property
-    def available(self):
-        """Calcula el monto disponible."""
-        return self.limit - self.used
-
 
 class Expense(models.Model):
     """Modelo para gastos."""
+
+    CURRENCY_CHOICES = [
+        ('PEN', 'Soles'),
+        ('USD', 'Dólares'),
+    ]
 
     CATEGORY_CHOICES = [
         ('food', 'Comida'),
@@ -133,6 +152,12 @@ class Expense(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0.01)]
     )
+    currency = models.CharField(
+        'Moneda',
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='PEN'
+    )
     category = models.CharField('Categoría', max_length=20, choices=CATEGORY_CHOICES)
     description = models.CharField('Descripción', max_length=255)
     date = models.DateField('Fecha del gasto')
@@ -144,6 +169,14 @@ class Expense(models.Model):
         related_name='expenses',
         verbose_name='Tarjeta de crédito'
     )
+    bank_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expenses',
+        verbose_name='Cuenta bancaria'
+    )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
 
     class Meta:
@@ -152,7 +185,8 @@ class Expense(models.Model):
         ordering = ['-date', '-created_at']
 
     def __str__(self):
-        return f"{self.description} - S/. {self.amount}"
+        symbol = 'S/' if self.currency == 'PEN' else '$'
+        return f"{self.description} - {symbol} {self.amount}"
 
     def save(self, *args, **kwargs):
         """Actualiza el monto usado de la tarjeta al guardar."""
@@ -164,9 +198,12 @@ class Expense(models.Model):
 
         super().save(*args, **kwargs)
 
-        if old_instance and old_instance.credit_card and old_instance.credit_card != self.credit_card:
-            self._update_card_used_amount(old_instance.credit_card)
+        # Revertir el impacto en la tarjeta anterior si cambió
+        if old_instance and old_instance.credit_card:
+            if old_instance.credit_card != self.credit_card or old_instance.currency != self.currency or old_instance.amount != self.amount:
+                self._update_card_used_amount(old_instance.credit_card)
 
+        # Aplicar el impacto en la tarjeta actual
         if self.credit_card:
             self._update_card_used_amount(self.credit_card)
 
@@ -178,8 +215,20 @@ class Expense(models.Model):
             self._update_card_used_amount(card)
 
     def _update_card_used_amount(self, card):
-        """Recalcula el monto usado de una tarjeta."""
+        """Recalcula el monto usado de una tarjeta separado por moneda."""
         from django.db.models import Sum
-        total = card.expenses.aggregate(total=Sum('amount'))['total'] or 0
-        card.used = total
-        card.save(update_fields=['used', 'updated_at'])
+
+        totals = card.expenses.values('currency').annotate(total=Sum('amount'))
+
+        used_pen = 0
+        used_usd = 0
+
+        for item in totals:
+            if item['currency'] == 'PEN':
+                used_pen = item['total'] or 0
+            elif item['currency'] == 'USD':
+                used_usd = item['total'] or 0
+
+        card.used_pen = used_pen
+        card.used_usd = used_usd
+        card.save(update_fields=['used_pen', 'used_usd', 'updated_at'])
