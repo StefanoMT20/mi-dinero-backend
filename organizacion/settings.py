@@ -131,6 +131,7 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.JSONParser',
     ],
     'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%SZ',
+    'COERCE_DECIMAL_TO_STRING': False,
 }
 
 # JWT Configuration
