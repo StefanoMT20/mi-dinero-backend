@@ -7,6 +7,11 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class BankAccount(models.Model):
     """Modelo para cuentas bancarias."""
 
+    CURRENCY_CHOICES = [
+        ('PEN', 'Soles'),
+        ('USD', 'Dólares'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -26,6 +31,12 @@ class BankAccount(models.Model):
         max_length=4,
         blank=True,
         null=True
+    )
+    currency = models.CharField(
+        'Moneda',
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='PEN'
     )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)

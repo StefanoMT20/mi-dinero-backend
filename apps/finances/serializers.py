@@ -7,7 +7,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BankAccount
-        fields = ['id', 'name', 'balance', 'last_four_digits']
+        fields = ['id', 'name', 'balance', 'last_four_digits', 'currency']
         read_only_fields = ['id']
 
 
