@@ -4,6 +4,41 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+class BankAccount(models.Model):
+    """Modelo para cuentas bancarias."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='bank_accounts',
+        verbose_name='Usuario'
+    )
+    name = models.CharField('Nombre', max_length=100)
+    balance = models.DecimalField(
+        'Balance',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    last_four_digits = models.CharField(
+        'Últimos 4 dígitos',
+        max_length=4,
+        blank=True,
+        null=True
+    )
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Cuenta bancaria'
+        verbose_name_plural = 'Cuentas bancarias'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.user.username}"
+
+
 class CreditCard(models.Model):
     """Modelo para tarjetas de crédito."""
 

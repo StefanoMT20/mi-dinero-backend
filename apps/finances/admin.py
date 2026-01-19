@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import CreditCard, Expense
+from .models import BankAccount, CreditCard, Expense
+
+
+@admin.register(BankAccount)
+class BankAccountAdmin(admin.ModelAdmin):
+    list_display = ['name', 'user', 'balance', 'last_four_digits', 'created_at']
+    list_filter = ['created_at', 'user']
+    search_fields = ['name', 'last_four_digits']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    ordering = ['-created_at']
 
 
 @admin.register(CreditCard)

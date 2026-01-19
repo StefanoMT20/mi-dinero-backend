@@ -1,11 +1,51 @@
+from decimal import Decimal
+
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import CreditCard, Expense
-from .serializers import CreditCardSerializer, ExpenseSerializer, ExpenseStatsSerializer
+from .models import BankAccount, CreditCard, Expense
+from .serializers import BankAccountSerializer, CreditCardSerializer, ExpenseSerializer, ExpenseStatsSerializer
+
+
+class BankAccountViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestionar cuentas bancarias."""
+
+    serializer_class = BankAccountSerializer
+
+    def get_queryset(self):
+        return BankAccount.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def deduct(self, request, pk=None):
+        """Deducir monto del balance."""
+        account = self.get_object()
+        amount = request.data.get('amount', 0)
+
+        try:
+            amount = Decimal(str(amount))
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'El monto debe ser un número válido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if amount <= 0:
+            return Response(
+                {'error': 'El monto debe ser mayor a 0'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        account.balance -= amount
+        account.save()
+
+        serializer = self.get_serializer(account)
+        return Response(serializer.data)
 
 
 class CreditCardViewSet(viewsets.ModelViewSet):

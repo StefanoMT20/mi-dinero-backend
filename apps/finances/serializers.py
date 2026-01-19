@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import CreditCard, Expense
+from .models import BankAccount, CreditCard, Expense
+
+
+class BankAccountSerializer(serializers.ModelSerializer):
+    """Serializer para cuentas bancarias."""
+
+    class Meta:
+        model = BankAccount
+        fields = ['id', 'name', 'balance', 'last_four_digits']
+        read_only_fields = ['id']
 
 
 class CreditCardSerializer(serializers.ModelSerializer):
