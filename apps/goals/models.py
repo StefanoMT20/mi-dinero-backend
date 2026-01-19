@@ -24,6 +24,14 @@ class FinanceGoalType(models.TextChoices):
     EXPENSE_LIMIT = 'expense_limit', 'Límite de gasto'
 
 
+class MeasurementType(models.TextChoices):
+    NUMERIC = 'numeric', 'Numérico'
+    CURRENCY = 'currency', 'Monetario'
+    PERCENTAGE = 'percentage', 'Porcentaje'
+    BOOLEAN = 'boolean', 'Sí/No'
+    MILESTONE = 'milestone', 'Hitos'
+
+
 class Objective(models.Model):
     """Modelo para objetivos (la O de OKR)."""
 
@@ -102,6 +110,12 @@ class KeyResult(models.Model):
         verbose_name='Objetivo'
     )
     title = models.CharField('Título', max_length=200)
+    measurement_type = models.CharField(
+        'Tipo de medición',
+        max_length=20,
+        choices=MeasurementType.choices,
+        default=MeasurementType.NUMERIC
+    )
     current_value = models.DecimalField(
         'Valor actual',
         max_digits=12,
@@ -113,7 +127,7 @@ class KeyResult(models.Model):
         max_digits=12,
         decimal_places=2
     )
-    unit = models.CharField('Unidad', max_length=50)
+    unit = models.CharField('Unidad', max_length=50, blank=True, default='')
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
 
@@ -131,3 +145,27 @@ class KeyResult(models.Model):
         if self.target_value <= 0:
             return 0
         return min(round((self.current_value / self.target_value) * 100), 100)
+
+
+class Milestone(models.Model):
+    """Modelo para hitos de un KeyResult."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key_result = models.ForeignKey(
+        KeyResult,
+        on_delete=models.CASCADE,
+        related_name='milestones',
+        verbose_name='Resultado Clave'
+    )
+    title = models.CharField('Título', max_length=255)
+    completed = models.BooleanField('Completado', default=False)
+    order = models.PositiveIntegerField('Orden', default=0)
+
+    class Meta:
+        verbose_name = 'Hito'
+        verbose_name_plural = 'Hitos'
+        ordering = ['order']
+
+    def __str__(self):
+        status = '✓' if self.completed else '○'
+        return f"{status} {self.title}"

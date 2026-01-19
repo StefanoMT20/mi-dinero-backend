@@ -1,11 +1,21 @@
 from rest_framework import serializers
-from .models import Objective, KeyResult
+from .models import Objective, KeyResult, Milestone
+
+
+class MilestoneSerializer(serializers.ModelSerializer):
+    """Serializer para Milestones."""
+
+    class Meta:
+        model = Milestone
+        fields = ['id', 'title', 'completed', 'order']
+        read_only_fields = ['id']
 
 
 class KeyResultSerializer(serializers.ModelSerializer):
     """Serializer para Key Results."""
 
     progress = serializers.IntegerField(read_only=True)
+    milestones = MilestoneSerializer(many=True, read_only=True)
 
     class Meta:
         model = KeyResult
@@ -13,14 +23,66 @@ class KeyResultSerializer(serializers.ModelSerializer):
             'id',
             'objective_id',
             'title',
+            'measurement_type',
             'current_value',
             'target_value',
             'unit',
+            'milestones',
             'progress',
             'created_at',
             'updated_at',
         ]
         read_only_fields = ['id', 'objective_id', 'created_at', 'updated_at']
+
+
+class KeyResultCreateSerializer(serializers.ModelSerializer):
+    """Serializer para crear/actualizar Key Results con milestones."""
+
+    milestones = MilestoneSerializer(many=True, required=False)
+
+    class Meta:
+        model = KeyResult
+        fields = [
+            'id',
+            'objective_id',
+            'title',
+            'measurement_type',
+            'current_value',
+            'target_value',
+            'unit',
+            'milestones',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'objective_id', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        milestones_data = validated_data.pop('milestones', [])
+        key_result = KeyResult.objects.create(**validated_data)
+
+        for idx, milestone_data in enumerate(milestones_data):
+            milestone_data['order'] = milestone_data.get('order', idx)
+            Milestone.objects.create(key_result=key_result, **milestone_data)
+
+        return key_result
+
+    def update(self, instance, validated_data):
+        milestones_data = validated_data.pop('milestones', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if milestones_data is not None:
+            instance.milestones.all().delete()
+            for idx, milestone_data in enumerate(milestones_data):
+                milestone_data['order'] = milestone_data.get('order', idx)
+                Milestone.objects.create(key_result=instance, **milestone_data)
+
+        return instance
+
+    def to_representation(self, instance):
+        return KeyResultSerializer(instance).data
 
 
 class LinkedFinanceGoalSerializer(serializers.Serializer):
