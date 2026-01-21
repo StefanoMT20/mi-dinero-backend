@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BankAccount, CreditCard, Expense
+from .models import BankAccount, CreditCard, Expense, Income
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -103,3 +103,50 @@ class ExpenseStatsSerializer(serializers.Serializer):
     by_category = serializers.DictField(child=serializers.DecimalField(max_digits=12, decimal_places=2))
     month = serializers.IntegerField()
     year = serializers.IntegerField()
+
+
+class IncomeSerializer(serializers.ModelSerializer):
+    """Serializer para ingresos."""
+
+    bank_account_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = Income
+        fields = [
+            'id',
+            'amount',
+            'category',
+            'description',
+            'currency',
+            'date',
+            'bank_account_id',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def create(self, validated_data):
+        bank_account_id = validated_data.pop('bank_account_id', None)
+        user = self.context['request'].user
+        validated_data['user'] = user
+
+        if bank_account_id:
+            validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        bank_account_id = validated_data.pop('bank_account_id', None)
+        user = self.context['request'].user
+
+        if bank_account_id is not None:
+            if bank_account_id:
+                validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+            else:
+                validated_data['bank_account'] = None
+
+        return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['bank_account_id'] = instance.bank_account_id
+        return data

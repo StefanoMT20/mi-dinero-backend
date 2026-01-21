@@ -232,3 +232,62 @@ class Expense(models.Model):
         card.used_pen = used_pen
         card.used_usd = used_usd
         card.save(update_fields=['used_pen', 'used_usd', 'updated_at'])
+
+
+class Income(models.Model):
+    """Modelo para ingresos."""
+
+    CURRENCY_CHOICES = [
+        ('PEN', 'Soles'),
+        ('USD', 'Dólares'),
+    ]
+
+    CATEGORY_CHOICES = [
+        ('salary', 'Sueldo'),
+        ('freelance', 'Freelance'),
+        ('investment', 'Inversión'),
+        ('gift', 'Regalo'),
+        ('refund', 'Reembolso'),
+        ('other', 'Otros'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='incomes',
+        verbose_name='Usuario'
+    )
+    amount = models.DecimalField(
+        'Monto',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)]
+    )
+    category = models.CharField('Categoría', max_length=20, choices=CATEGORY_CHOICES)
+    description = models.CharField('Descripción', max_length=255)
+    currency = models.CharField(
+        'Moneda',
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='PEN'
+    )
+    date = models.DateField('Fecha del ingreso')
+    bank_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='incomes',
+        verbose_name='Cuenta bancaria'
+    )
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Ingreso'
+        verbose_name_plural = 'Ingresos'
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        symbol = 'S/' if self.currency == 'PEN' else '$'
+        return f"{self.description} - {symbol} {self.amount}"

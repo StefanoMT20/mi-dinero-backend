@@ -6,8 +6,14 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import BankAccount, CreditCard, Expense
-from .serializers import BankAccountSerializer, CreditCardSerializer, ExpenseSerializer, ExpenseStatsSerializer
+from .models import BankAccount, CreditCard, Expense, Income
+from .serializers import (
+    BankAccountSerializer,
+    CreditCardSerializer,
+    ExpenseSerializer,
+    ExpenseStatsSerializer,
+    IncomeSerializer,
+)
 
 
 class BankAccountViewSet(viewsets.ModelViewSet):
@@ -116,3 +122,31 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
         serializer = ExpenseStatsSerializer(data)
         return Response(serializer.data)
+
+
+class IncomeViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestionar ingresos."""
+
+    serializer_class = IncomeSerializer
+
+    def get_queryset(self):
+        queryset = Income.objects.filter(user=self.request.user).select_related('bank_account')
+
+        # Filtros
+        month = self.request.query_params.get('month')
+        year = self.request.query_params.get('year')
+        category = self.request.query_params.get('category')
+        bank_account_id = self.request.query_params.get('bank_account_id')
+
+        if month and year:
+            queryset = queryset.filter(date__month=month, date__year=year)
+        elif year:
+            queryset = queryset.filter(date__year=year)
+
+        if category:
+            queryset = queryset.filter(category=category)
+
+        if bank_account_id:
+            queryset = queryset.filter(bank_account_id=bank_account_id)
+
+        return queryset

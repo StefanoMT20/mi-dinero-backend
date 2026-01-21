@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import BankAccount, CreditCard, Expense
+from .models import BankAccount, CreditCard, Expense, Income
 
 
 @admin.register(BankAccount)
@@ -24,6 +24,16 @@ class CreditCardAdmin(admin.ModelAdmin):
 class ExpenseAdmin(admin.ModelAdmin):
     list_display = ['description', 'user', 'amount', 'currency', 'category', 'credit_card', 'bank_account', 'date', 'created_at']
     list_filter = ['currency', 'category', 'credit_card', 'bank_account', 'date', 'created_at', 'user']
+    search_fields = ['description']
+    readonly_fields = ['id', 'created_at']
+    ordering = ['-date', '-created_at']
+    date_hierarchy = 'date'
+
+
+@admin.register(Income)
+class IncomeAdmin(admin.ModelAdmin):
+    list_display = ['description', 'user', 'amount', 'currency', 'category', 'bank_account', 'date', 'created_at']
+    list_filter = ['currency', 'category', 'bank_account', 'date', 'created_at', 'user']
     search_fields = ['description']
     readonly_fields = ['id', 'created_at']
     ordering = ['-date', '-created_at']
