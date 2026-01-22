@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BankAccount, CreditCard, Expense, Income
+from .models import BankAccount, CreditCard, Expense, FixedExpense, Income
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -149,4 +149,66 @@ class IncomeSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['bank_account_id'] = instance.bank_account_id
+        return data
+
+
+class FixedExpenseSerializer(serializers.ModelSerializer):
+    """Serializer para gastos fijos."""
+
+    credit_card = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    bank_account = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = FixedExpense
+        fields = [
+            'id',
+            'name',
+            'amount',
+            'currency',
+            'category',
+            'day_of_month',
+            'credit_card',
+            'bank_account',
+            'is_active',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def create(self, validated_data):
+        credit_card_id = validated_data.pop('credit_card', None)
+        bank_account_id = validated_data.pop('bank_account', None)
+        user = self.context['request'].user
+        validated_data['user'] = user
+
+        if credit_card_id:
+            validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
+
+        if bank_account_id:
+            validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        credit_card_id = validated_data.pop('credit_card', None)
+        bank_account_id = validated_data.pop('bank_account', None)
+        user = self.context['request'].user
+
+        if 'credit_card' in self.initial_data:
+            if credit_card_id:
+                validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
+            else:
+                validated_data['credit_card'] = None
+
+        if 'bank_account' in self.initial_data:
+            if bank_account_id:
+                validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+            else:
+                validated_data['bank_account'] = None
+
+        return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['credit_card'] = instance.credit_card_id
+        data['bank_account'] = instance.bank_account_id
         return data

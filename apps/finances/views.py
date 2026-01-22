@@ -6,12 +6,13 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import BankAccount, CreditCard, Expense, Income
+from .models import BankAccount, CreditCard, Expense, FixedExpense, Income
 from .serializers import (
     BankAccountSerializer,
     CreditCardSerializer,
     ExpenseSerializer,
     ExpenseStatsSerializer,
+    FixedExpenseSerializer,
     IncomeSerializer,
 )
 
@@ -150,3 +151,14 @@ class IncomeViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(bank_account_id=bank_account_id)
 
         return queryset
+
+
+class FixedExpenseViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestionar gastos fijos."""
+
+    serializer_class = FixedExpenseSerializer
+
+    def get_queryset(self):
+        return FixedExpense.objects.filter(user=self.request.user).select_related(
+            'credit_card', 'bank_account'
+        )

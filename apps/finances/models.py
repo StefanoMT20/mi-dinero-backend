@@ -234,6 +234,79 @@ class Expense(models.Model):
         card.save(update_fields=['used_pen', 'used_usd', 'updated_at'])
 
 
+class FixedExpense(models.Model):
+    """Modelo para gastos fijos recurrentes."""
+
+    CURRENCY_CHOICES = [
+        ('PEN', 'Soles'),
+        ('USD', 'Dólares'),
+    ]
+
+    CATEGORY_CHOICES = [
+        ('food', 'Comida'),
+        ('transport', 'Transporte'),
+        ('entertainment', 'Entretenimiento'),
+        ('shopping', 'Compras'),
+        ('bills', 'Servicios'),
+        ('health', 'Salud'),
+        ('other', 'Otros'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='fixed_expenses',
+        verbose_name='Usuario'
+    )
+    name = models.CharField('Nombre', max_length=100)
+    amount = models.DecimalField(
+        'Monto',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)]
+    )
+    currency = models.CharField(
+        'Moneda',
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='PEN'
+    )
+    category = models.CharField('Categoría', max_length=20, choices=CATEGORY_CHOICES)
+    day_of_month = models.PositiveSmallIntegerField(
+        'Día del mes',
+        validators=[MinValueValidator(1), MaxValueValidator(31)]
+    )
+    credit_card = models.ForeignKey(
+        CreditCard,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fixed_expenses',
+        verbose_name='Tarjeta de crédito'
+    )
+    bank_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fixed_expenses',
+        verbose_name='Cuenta bancaria'
+    )
+    is_active = models.BooleanField('Activo', default=True)
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Gasto fijo'
+        verbose_name_plural = 'Gastos fijos'
+        ordering = ['day_of_month', 'name']
+
+    def __str__(self):
+        symbol = 'S/' if self.currency == 'PEN' else '$'
+        return f"{self.name} - {symbol} {self.amount}"
+
+
 class Income(models.Model):
     """Modelo para ingresos."""
 
