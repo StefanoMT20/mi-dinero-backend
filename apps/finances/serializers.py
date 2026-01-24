@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from apps.categories.models import Category
+from apps.categories.serializers import CategorySerializer
 from .models import BankAccount, CreditCard, Expense, FixedExpense, Income
 
 
@@ -36,6 +38,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
     credit_card_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     bank_account_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    category_id = serializers.UUIDField(write_only=True, required=True)
 
     class Meta:
         model = Expense
@@ -44,21 +47,26 @@ class ExpenseSerializer(serializers.ModelSerializer):
             'amount',
             'currency',
             'category',
+            'category_id',
             'description',
             'date',
             'credit_card_id',
             'bank_account_id',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'category']
 
     def create(self, validated_data):
         from .models import BankAccount
 
         credit_card_id = validated_data.pop('credit_card_id', None)
         bank_account_id = validated_data.pop('bank_account_id', None)
+        category_id = validated_data.pop('category_id')
         user = self.context['request'].user
         validated_data['user'] = user
+
+        # Buscar categoría del usuario
+        validated_data['category'] = Category.objects.get(id=category_id, user=user)
 
         if credit_card_id:
             validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
@@ -73,7 +81,11 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
         credit_card_id = validated_data.pop('credit_card_id', None)
         bank_account_id = validated_data.pop('bank_account_id', None)
+        category_id = validated_data.pop('category_id', None)
         user = self.context['request'].user
+
+        if category_id is not None:
+            validated_data['category'] = Category.objects.get(id=category_id, user=user)
 
         if credit_card_id is not None:
             if credit_card_id:
@@ -93,6 +105,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['credit_card_id'] = instance.credit_card_id
         data['bank_account_id'] = instance.bank_account_id
+        data['category'] = CategorySerializer(instance.category).data if instance.category else None
         return data
 
 
@@ -109,6 +122,7 @@ class IncomeSerializer(serializers.ModelSerializer):
     """Serializer para ingresos."""
 
     bank_account_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    category_id = serializers.UUIDField(write_only=True, required=True)
 
     class Meta:
         model = Income
@@ -116,18 +130,23 @@ class IncomeSerializer(serializers.ModelSerializer):
             'id',
             'amount',
             'category',
+            'category_id',
             'description',
             'currency',
             'date',
             'bank_account_id',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'category']
 
     def create(self, validated_data):
         bank_account_id = validated_data.pop('bank_account_id', None)
+        category_id = validated_data.pop('category_id')
         user = self.context['request'].user
         validated_data['user'] = user
+
+        # Buscar categoría del usuario
+        validated_data['category'] = Category.objects.get(id=category_id, user=user)
 
         if bank_account_id:
             validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
@@ -136,7 +155,11 @@ class IncomeSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         bank_account_id = validated_data.pop('bank_account_id', None)
+        category_id = validated_data.pop('category_id', None)
         user = self.context['request'].user
+
+        if category_id is not None:
+            validated_data['category'] = Category.objects.get(id=category_id, user=user)
 
         if bank_account_id is not None:
             if bank_account_id:
@@ -149,6 +172,7 @@ class IncomeSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['bank_account_id'] = instance.bank_account_id
+        data['category'] = CategorySerializer(instance.category).data if instance.category else None
         return data
 
 
@@ -157,6 +181,7 @@ class FixedExpenseSerializer(serializers.ModelSerializer):
 
     credit_card = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     bank_account = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    category_id = serializers.UUIDField(write_only=True, required=True)
 
     class Meta:
         model = FixedExpense
@@ -166,19 +191,24 @@ class FixedExpenseSerializer(serializers.ModelSerializer):
             'amount',
             'currency',
             'category',
+            'category_id',
             'day_of_month',
             'credit_card',
             'bank_account',
             'is_active',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'category']
 
     def create(self, validated_data):
         credit_card_id = validated_data.pop('credit_card', None)
         bank_account_id = validated_data.pop('bank_account', None)
+        category_id = validated_data.pop('category_id')
         user = self.context['request'].user
         validated_data['user'] = user
+
+        # Buscar categoría del usuario
+        validated_data['category'] = Category.objects.get(id=category_id, user=user)
 
         if credit_card_id:
             validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
@@ -191,7 +221,11 @@ class FixedExpenseSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         credit_card_id = validated_data.pop('credit_card', None)
         bank_account_id = validated_data.pop('bank_account', None)
+        category_id = validated_data.pop('category_id', None)
         user = self.context['request'].user
+
+        if category_id is not None:
+            validated_data['category'] = Category.objects.get(id=category_id, user=user)
 
         if 'credit_card' in self.initial_data:
             if credit_card_id:
@@ -211,4 +245,5 @@ class FixedExpenseSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['credit_card'] = instance.credit_card_id
         data['bank_account'] = instance.bank_account_id
+        data['category'] = CategorySerializer(instance.category).data if instance.category else None
         return data

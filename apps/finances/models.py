@@ -3,6 +3,8 @@ from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from apps.categories.models import Category
+
 
 class BankAccount(models.Model):
     """Modelo para cuentas bancarias."""
@@ -129,16 +131,6 @@ class Expense(models.Model):
         ('USD', 'Dólares'),
     ]
 
-    CATEGORY_CHOICES = [
-        ('food', 'Comida'),
-        ('transport', 'Transporte'),
-        ('entertainment', 'Entretenimiento'),
-        ('shopping', 'Compras'),
-        ('bills', 'Servicios'),
-        ('health', 'Salud'),
-        ('other', 'Otros'),
-    ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -158,7 +150,14 @@ class Expense(models.Model):
         choices=CURRENCY_CHOICES,
         default='PEN'
     )
-    category = models.CharField('Categoría', max_length=20, choices=CATEGORY_CHOICES)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name='expenses',
+        verbose_name='Categoría',
+        null=True,
+        blank=True
+    )
     description = models.CharField('Descripción', max_length=255)
     date = models.DateField('Fecha del gasto')
     credit_card = models.ForeignKey(
@@ -242,16 +241,6 @@ class FixedExpense(models.Model):
         ('USD', 'Dólares'),
     ]
 
-    CATEGORY_CHOICES = [
-        ('food', 'Comida'),
-        ('transport', 'Transporte'),
-        ('entertainment', 'Entretenimiento'),
-        ('shopping', 'Compras'),
-        ('bills', 'Servicios'),
-        ('health', 'Salud'),
-        ('other', 'Otros'),
-    ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -272,7 +261,14 @@ class FixedExpense(models.Model):
         choices=CURRENCY_CHOICES,
         default='PEN'
     )
-    category = models.CharField('Categoría', max_length=20, choices=CATEGORY_CHOICES)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name='fixed_expenses',
+        verbose_name='Categoría',
+        null=True,
+        blank=True
+    )
     day_of_month = models.PositiveSmallIntegerField(
         'Día del mes',
         validators=[MinValueValidator(1), MaxValueValidator(31)]
@@ -315,15 +311,6 @@ class Income(models.Model):
         ('USD', 'Dólares'),
     ]
 
-    CATEGORY_CHOICES = [
-        ('salary', 'Sueldo'),
-        ('freelance', 'Freelance'),
-        ('investment', 'Inversión'),
-        ('gift', 'Regalo'),
-        ('refund', 'Reembolso'),
-        ('other', 'Otros'),
-    ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -337,7 +324,14 @@ class Income(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0.01)]
     )
-    category = models.CharField('Categoría', max_length=20, choices=CATEGORY_CHOICES)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name='incomes',
+        verbose_name='Categoría',
+        null=True,
+        blank=True
+    )
     description = models.CharField('Descripción', max_length=255)
     currency = models.CharField(
         'Moneda',

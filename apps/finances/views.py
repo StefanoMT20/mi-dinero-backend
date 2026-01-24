@@ -73,7 +73,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
 
     def get_queryset(self):
-        queryset = Expense.objects.filter(user=self.request.user).select_related('credit_card')
+        queryset = Expense.objects.filter(user=self.request.user).select_related('credit_card', 'category')
 
         # Filtros
         month = self.request.query_params.get('month')
@@ -87,7 +87,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(date__year=year)
 
         if category:
-            queryset = queryset.filter(category=category)
+            queryset = queryset.filter(category_id=category)
 
         if credit_card_id:
             queryset = queryset.filter(credit_card_id=credit_card_id)
@@ -105,14 +105,14 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             user=request.user,
             date__month=month,
             date__year=year
-        )
+        ).select_related('category')
 
         monthly_total = expenses.aggregate(total=Sum('amount'))['total'] or 0
 
         by_category = {}
-        category_totals = expenses.values('category').annotate(total=Sum('amount'))
+        category_totals = expenses.values('category__id', 'category__name').annotate(total=Sum('amount'))
         for item in category_totals:
-            by_category[item['category']] = item['total']
+            by_category[item['category__name']] = item['total']
 
         data = {
             'monthly_total': monthly_total,
@@ -131,7 +131,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
     serializer_class = IncomeSerializer
 
     def get_queryset(self):
-        queryset = Income.objects.filter(user=self.request.user).select_related('bank_account')
+        queryset = Income.objects.filter(user=self.request.user).select_related('bank_account', 'category')
 
         # Filtros
         month = self.request.query_params.get('month')
@@ -145,7 +145,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(date__year=year)
 
         if category:
-            queryset = queryset.filter(category=category)
+            queryset = queryset.filter(category_id=category)
 
         if bank_account_id:
             queryset = queryset.filter(bank_account_id=bank_account_id)
@@ -160,5 +160,5 @@ class FixedExpenseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return FixedExpense.objects.filter(user=self.request.user).select_related(
-            'credit_card', 'bank_account'
+            'credit_card', 'bank_account', 'category'
         )
