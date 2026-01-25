@@ -12,14 +12,20 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Paso 1: Renombrar category a category_old
+        # Paso 1: Quitar unique_together antes de renombrar el campo
+        migrations.AlterUniqueTogether(
+            name='budget',
+            unique_together=set(),
+        ),
+
+        # Paso 2: Renombrar category a category_old
         migrations.RenameField(
             model_name='budget',
             old_name='category',
             new_name='category_old',
         ),
 
-        # Paso 2: Agregar nuevo campo category como ForeignKey
+        # Paso 3: Agregar nuevo campo category como ForeignKey
         migrations.AddField(
             model_name='budget',
             name='category',
