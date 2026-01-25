@@ -2,15 +2,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 
-
-class ExpenseCategory(models.TextChoices):
-    FOOD = 'food', 'Comida'
-    TRANSPORT = 'transport', 'Transporte'
-    ENTERTAINMENT = 'entertainment', 'Entretenimiento'
-    SHOPPING = 'shopping', 'Compras'
-    BILLS = 'bills', 'Facturas'
-    HEALTH = 'health', 'Salud'
-    OTHER = 'other', 'Otro'
+from apps.categories.models import Category
 
 
 class BudgetPeriod(models.TextChoices):
@@ -29,10 +21,11 @@ class Budget(models.Model):
         related_name='budgets',
         verbose_name='Usuario'
     )
-    category = models.CharField(
-        'Categoría',
-        max_length=20,
-        choices=ExpenseCategory.choices
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name='budgets',
+        verbose_name='Categoría'
     )
     amount = models.DecimalField(
         'Monto',
@@ -55,4 +48,4 @@ class Budget(models.Model):
         ordering = ['category']
 
     def __str__(self):
-        return f"{self.get_category_display()} - {self.amount}"
+        return f"{self.category.name} - {self.amount}"
