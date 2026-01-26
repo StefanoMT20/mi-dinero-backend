@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.categories.models import Category
-from .models import BankAccount, CreditCard, Expense, FixedExpense, Income
+from .models import BankAccount, CreditCard, Expense, FixedExpense, FixedIncome, Income
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -237,5 +237,63 @@ class FixedExpenseSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['category'] = str(instance.category_id) if instance.category_id else None
         data['credit_card_id'] = str(instance.credit_card_id) if instance.credit_card_id else None
+        data['bank_account_id'] = str(instance.bank_account_id) if instance.bank_account_id else None
+        return data
+
+
+class FixedIncomeSerializer(serializers.ModelSerializer):
+    """Serializer para ingresos fijos."""
+
+    category = serializers.UUIDField()
+    bank_account_id = serializers.UUIDField(required=False, allow_null=True)
+
+    class Meta:
+        model = FixedIncome
+        fields = [
+            'id',
+            'name',
+            'amount',
+            'currency',
+            'category',
+            'day_of_month',
+            'bank_account_id',
+            'is_active',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def create(self, validated_data):
+        bank_account_id = validated_data.pop('bank_account_id', None)
+        category_id = validated_data.pop('category')
+        user = self.context['request'].user
+        validated_data['user'] = user
+
+        # Buscar categoría del usuario
+        validated_data['category'] = Category.objects.get(id=category_id, user=user)
+
+        if bank_account_id:
+            validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        bank_account_id = validated_data.pop('bank_account_id', None)
+        category_id = validated_data.pop('category', None)
+        user = self.context['request'].user
+
+        if category_id is not None:
+            validated_data['category'] = Category.objects.get(id=category_id, user=user)
+
+        if bank_account_id is not None:
+            if bank_account_id:
+                validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+            else:
+                validated_data['bank_account'] = None
+
+        return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['category'] = str(instance.category_id) if instance.category_id else None
         data['bank_account_id'] = str(instance.bank_account_id) if instance.bank_account_id else None
         return data

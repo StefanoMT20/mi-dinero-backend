@@ -358,3 +358,65 @@ class Income(models.Model):
     def __str__(self):
         symbol = 'S/' if self.currency == 'PEN' else '$'
         return f"{self.description} - {symbol} {self.amount}"
+
+
+class FixedIncome(models.Model):
+    """Modelo para ingresos fijos recurrentes."""
+
+    CURRENCY_CHOICES = [
+        ('PEN', 'Soles'),
+        ('USD', 'Dólares'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='fixed_incomes',
+        verbose_name='Usuario'
+    )
+    name = models.CharField('Nombre', max_length=100)
+    amount = models.DecimalField(
+        'Monto',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)]
+    )
+    currency = models.CharField(
+        'Moneda',
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='PEN'
+    )
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name='fixed_incomes',
+        verbose_name='Categoría',
+        null=True,
+        blank=True
+    )
+    day_of_month = models.PositiveSmallIntegerField(
+        'Día del mes',
+        validators=[MinValueValidator(1), MaxValueValidator(31)]
+    )
+    bank_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fixed_incomes',
+        verbose_name='Cuenta bancaria'
+    )
+    is_active = models.BooleanField('Activo', default=True)
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Ingreso fijo'
+        verbose_name_plural = 'Ingresos fijos'
+        ordering = ['day_of_month', 'name']
+
+    def __str__(self):
+        symbol = 'S/' if self.currency == 'PEN' else '$'
+        return f"{self.name} - {symbol} {self.amount}"
