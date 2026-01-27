@@ -26,7 +26,6 @@ class BankAccount(models.Model):
         'Balance',
         max_digits=12,
         decimal_places=2,
-        validators=[MinValueValidator(0)]
     )
     last_four_digits = models.CharField(
         'Últimos 4 dígitos',
