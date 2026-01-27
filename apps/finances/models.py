@@ -50,6 +50,30 @@ class BankAccount(models.Model):
     def __str__(self):
         return f"{self.name} - {self.user.username}"
 
+    @property
+    def total_income(self):
+        """Calcula el total de ingresos de esta cuenta en su moneda."""
+        from django.db.models import Sum
+        total = self.incomes.filter(currency=self.currency).aggregate(
+            total=Sum('amount')
+        )['total']
+        return total or 0
+
+    @property
+    def total_expenses(self):
+        """Calcula el total de gastos de esta cuenta en su moneda."""
+        from django.db.models import Sum
+        total = self.expenses.filter(currency=self.currency).aggregate(
+            total=Sum('amount')
+        )['total']
+        return total or 0
+
+    @property
+    def calculated_balance(self):
+        """Calcula el balance real: balance inicial + ingresos - gastos."""
+        from decimal import Decimal
+        return Decimal(str(self.balance)) + Decimal(str(self.total_income)) - Decimal(str(self.total_expenses))
+
 
 class CreditCard(models.Model):
     """Modelo para tarjetas de crédito."""

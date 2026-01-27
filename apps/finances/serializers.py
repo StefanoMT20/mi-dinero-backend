@@ -6,10 +6,23 @@ from .models import BankAccount, CreditCard, Expense, FixedExpense, FixedIncome,
 class BankAccountSerializer(serializers.ModelSerializer):
     """Serializer para cuentas bancarias."""
 
+    total_income = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_expenses = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    calculated_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
     class Meta:
         model = BankAccount
-        fields = ['id', 'name', 'balance', 'last_four_digits', 'currency']
-        read_only_fields = ['id']
+        fields = [
+            'id',
+            'name',
+            'balance',
+            'last_four_digits',
+            'currency',
+            'total_income',
+            'total_expenses',
+            'calculated_balance',
+        ]
+        read_only_fields = ['id', 'total_income', 'total_expenses', 'calculated_balance']
 
 
 class CreditCardSerializer(serializers.ModelSerializer):
@@ -66,9 +79,14 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
         if credit_card_id:
             validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
-
-        if bank_account_id:
+        elif bank_account_id:
             validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+        else:
+            # Auto-asignar cuenta bancaria según la moneda del gasto
+            currency = validated_data.get('currency', 'PEN')
+            bank_account = BankAccount.objects.filter(user=user, currency=currency).first()
+            if bank_account:
+                validated_data['bank_account'] = bank_account
 
         return super().create(validated_data)
 
@@ -81,13 +99,24 @@ class ExpenseSerializer(serializers.ModelSerializer):
         if category_id is not None:
             validated_data['category'] = Category.objects.get(id=category_id, user=user)
 
+        # Determinar currency (del update o del existente)
+        currency = validated_data.get('currency', instance.currency)
+
         if credit_card_id is not None:
             if credit_card_id:
+                # Usa tarjeta de crédito, quitar cuenta bancaria
                 validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
+                validated_data['bank_account'] = None
             else:
+                # Quita tarjeta, auto-asignar cuenta según currency
                 validated_data['credit_card'] = None
-
-        if bank_account_id is not None:
+                if bank_account_id:
+                    validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+                else:
+                    bank_account = BankAccount.objects.filter(user=user, currency=currency).first()
+                    if bank_account:
+                        validated_data['bank_account'] = bank_account
+        elif bank_account_id is not None:
             if bank_account_id:
                 validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
             else:
