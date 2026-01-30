@@ -8,6 +8,8 @@ class BankAccountSerializer(serializers.ModelSerializer):
 
     total_income = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_expenses = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_fixed_income = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_fixed_expenses = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     calculated_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
     class Meta:
@@ -22,9 +24,11 @@ class BankAccountSerializer(serializers.ModelSerializer):
             'add_incomes',
             'total_income',
             'total_expenses',
+            'total_fixed_income',
+            'total_fixed_expenses',
             'calculated_balance',
         ]
-        read_only_fields = ['id', 'total_income', 'total_expenses', 'calculated_balance']
+        read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'calculated_balance']
 
 
 class CreditCardSerializer(serializers.ModelSerializer):
