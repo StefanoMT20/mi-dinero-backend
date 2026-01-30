@@ -39,6 +39,16 @@ class BankAccount(models.Model):
         choices=CURRENCY_CHOICES,
         default='PEN'
     )
+    subtract_expenses = models.BooleanField(
+        'Restar gastos',
+        default=True,
+        help_text='Si está activo, resta los gastos del saldo'
+    )
+    add_incomes = models.BooleanField(
+        'Sumar ingresos',
+        default=False,
+        help_text='Si está activo, suma los ingresos al saldo'
+    )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
 
@@ -70,9 +80,14 @@ class BankAccount(models.Model):
 
     @property
     def calculated_balance(self):
-        """Calcula el balance disponible: saldo actual - gastos pendientes."""
+        """Calcula el balance según las opciones configuradas."""
         from decimal import Decimal
-        return Decimal(str(self.balance)) - Decimal(str(self.total_expenses))
+        result = Decimal(str(self.balance))
+        if self.subtract_expenses:
+            result -= Decimal(str(self.total_expenses))
+        if self.add_incomes:
+            result += Decimal(str(self.total_income))
+        return result
 
 
 class CreditCard(models.Model):

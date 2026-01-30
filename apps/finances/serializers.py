@@ -18,6 +18,8 @@ class BankAccountSerializer(serializers.ModelSerializer):
             'balance',
             'last_four_digits',
             'currency',
+            'subtract_expenses',
+            'add_incomes',
             'total_income',
             'total_expenses',
             'calculated_balance',
