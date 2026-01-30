@@ -70,9 +70,9 @@ class BankAccount(models.Model):
 
     @property
     def calculated_balance(self):
-        """Calcula el balance real: balance inicial + ingresos - gastos."""
+        """Calcula el balance disponible: saldo actual - gastos pendientes."""
         from decimal import Decimal
-        return Decimal(str(self.balance)) + Decimal(str(self.total_income)) - Decimal(str(self.total_expenses))
+        return Decimal(str(self.balance)) - Decimal(str(self.total_expenses))
 
 
 class CreditCard(models.Model):
