@@ -49,6 +49,12 @@ class BankAccount(models.Model):
         default=False,
         help_text='Si está activo, suma los ingresos al saldo'
     )
+    balance_updated_at = models.DateTimeField(
+        'Fecha de actualización del saldo',
+        null=True,
+        blank=True,
+        help_text='Si tiene valor, solo gastos/ingresos creados después de esta fecha afectan el saldo'
+    )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
 
@@ -64,18 +70,20 @@ class BankAccount(models.Model):
     def total_income(self):
         """Calcula el total de ingresos de esta cuenta en su moneda."""
         from django.db.models import Sum
-        total = self.incomes.filter(currency=self.currency).aggregate(
-            total=Sum('amount')
-        )['total']
+        queryset = self.incomes.filter(currency=self.currency)
+        if self.balance_updated_at:
+            queryset = queryset.filter(created_at__gte=self.balance_updated_at)
+        total = queryset.aggregate(total=Sum('amount'))['total']
         return total or 0
 
     @property
     def total_expenses(self):
         """Calcula el total de gastos de esta cuenta en su moneda."""
         from django.db.models import Sum
-        total = self.expenses.filter(currency=self.currency).aggregate(
-            total=Sum('amount')
-        )['total']
+        queryset = self.expenses.filter(currency=self.currency)
+        if self.balance_updated_at:
+            queryset = queryset.filter(created_at__gte=self.balance_updated_at)
+        total = queryset.aggregate(total=Sum('amount'))['total']
         return total or 0
 
     @property

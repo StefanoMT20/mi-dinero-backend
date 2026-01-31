@@ -11,6 +11,12 @@ class BankAccountSerializer(serializers.ModelSerializer):
     total_fixed_income = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_fixed_expenses = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     calculated_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    reset_balance_date = serializers.BooleanField(
+        write_only=True,
+        required=False,
+        default=False,
+        help_text='Si es True, establece balance_updated_at a ahora (ignora gastos/ingresos anteriores)'
+    )
 
     class Meta:
         model = BankAccount
@@ -22,13 +28,24 @@ class BankAccountSerializer(serializers.ModelSerializer):
             'currency',
             'subtract_expenses',
             'add_incomes',
+            'balance_updated_at',
             'total_income',
             'total_expenses',
             'total_fixed_income',
             'total_fixed_expenses',
             'calculated_balance',
+            'reset_balance_date',
         ]
-        read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'calculated_balance']
+        read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'calculated_balance', 'balance_updated_at']
+
+    def update(self, instance, validated_data):
+        from django.utils import timezone
+        reset_balance_date = validated_data.pop('reset_balance_date', False)
+
+        if reset_balance_date:
+            validated_data['balance_updated_at'] = timezone.now()
+
+        return super().update(instance, validated_data)
 
 
 class CreditCardSerializer(serializers.ModelSerializer):
