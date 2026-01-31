@@ -6,10 +6,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import BankAccount, CreditCard, Expense, FixedExpense, FixedIncome, Income
+from .models import BankAccount, CreditCard, CreditCardPayment, Expense, FixedExpense, FixedIncome, Income
 from .serializers import (
     BankAccountSerializer,
     CreditCardSerializer,
+    CreditCardPaymentSerializer,
     ExpenseSerializer,
     ExpenseStatsSerializer,
     FixedExpenseSerializer,
@@ -174,3 +175,29 @@ class FixedIncomeViewSet(viewsets.ModelViewSet):
         return FixedIncome.objects.filter(user=self.request.user).select_related(
             'bank_account', 'category'
         )
+
+
+class CreditCardPaymentViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestionar pagos de tarjetas de crédito."""
+
+    serializer_class = CreditCardPaymentSerializer
+
+    def get_queryset(self):
+        queryset = CreditCardPayment.objects.filter(user=self.request.user).select_related(
+            'credit_card', 'bank_account'
+        )
+
+        # Filtros
+        month = self.request.query_params.get('month')
+        year = self.request.query_params.get('year')
+        credit_card_id = self.request.query_params.get('credit_card_id')
+
+        if month and year:
+            queryset = queryset.filter(date__month=month, date__year=year)
+        elif year:
+            queryset = queryset.filter(date__year=year)
+
+        if credit_card_id:
+            queryset = queryset.filter(credit_card_id=credit_card_id)
+
+        return queryset

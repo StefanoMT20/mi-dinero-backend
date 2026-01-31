@@ -492,3 +492,113 @@ class FixedIncome(models.Model):
     def __str__(self):
         symbol = 'S/' if self.currency == 'PEN' else '$'
         return f"{self.name} - {symbol} {self.amount}"
+
+
+class CreditCardPayment(models.Model):
+    """Modelo para pagos de tarjetas de crédito."""
+
+    CURRENCY_CHOICES = [
+        ('PEN', 'Soles'),
+        ('USD', 'Dólares'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='credit_card_payments',
+        verbose_name='Usuario'
+    )
+    credit_card = models.ForeignKey(
+        CreditCard,
+        on_delete=models.CASCADE,
+        related_name='payments',
+        verbose_name='Tarjeta de crédito'
+    )
+    amount = models.DecimalField(
+        'Monto del pago',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)]
+    )
+    currency = models.CharField(
+        'Moneda del pago',
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='PEN',
+        help_text='Moneda en la que se realiza el pago'
+    )
+    bank_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='credit_card_payments',
+        verbose_name='Cuenta bancaria'
+    )
+    date = models.DateField('Fecha del pago')
+    description = models.CharField(
+        'Descripción',
+        max_length=255,
+        blank=True,
+        default=''
+    )
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Pago de tarjeta'
+        verbose_name_plural = 'Pagos de tarjetas'
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        symbol = 'S/' if self.currency == 'PEN' else '$'
+        return f"Pago {self.credit_card.name} - {symbol} {self.amount}"
+
+    def save(self, *args, **kwargs):
+        """Al guardar, reduce el saldo usado de la tarjeta."""
+        is_new = self._state.adding
+        old_instance = None
+
+        if not is_new:
+            old_instance = CreditCardPayment.objects.filter(pk=self.pk).first()
+
+        super().save(*args, **kwargs)
+
+        # Si es edición, revertir el pago anterior
+        if old_instance:
+            self._revert_payment(old_instance)
+
+        # Aplicar el nuevo pago
+        self._apply_payment()
+
+    def delete(self, *args, **kwargs):
+        """Al eliminar, revierte el pago (suma al saldo usado)."""
+        card = self.credit_card
+        amount = self.amount
+        currency = self.currency
+        super().delete(*args, **kwargs)
+
+        # Revertir: sumar de vuelta al usado
+        if currency == 'PEN':
+            card.used_pen += amount
+        else:
+            card.used_usd += amount
+        card.save(update_fields=['used_pen', 'used_usd', 'updated_at'])
+
+    def _apply_payment(self):
+        """Reduce el saldo usado de la tarjeta según la moneda del pago."""
+        card = self.credit_card
+        if self.currency == 'PEN':
+            card.used_pen = max(0, card.used_pen - self.amount)
+        else:
+            card.used_usd = max(0, card.used_usd - self.amount)
+        card.save(update_fields=['used_pen', 'used_usd', 'updated_at'])
+
+    def _revert_payment(self, old_instance):
+        """Revierte un pago anterior (para ediciones)."""
+        card = old_instance.credit_card
+        if old_instance.currency == 'PEN':
+            card.used_pen += old_instance.amount
+        else:
+            card.used_usd += old_instance.amount
+        card.save(update_fields=['used_pen', 'used_usd', 'updated_at'])

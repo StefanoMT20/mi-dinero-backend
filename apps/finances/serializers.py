@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.categories.models import Category
-from .models import BankAccount, CreditCard, Expense, FixedExpense, FixedIncome, Income
+from .models import BankAccount, CreditCard, CreditCardPayment, Expense, FixedExpense, FixedIncome, Income
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -330,5 +330,63 @@ class FixedIncomeSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['category'] = str(instance.category_id) if instance.category_id else None
+        data['bank_account_id'] = str(instance.bank_account_id) if instance.bank_account_id else None
+        return data
+
+
+class CreditCardPaymentSerializer(serializers.ModelSerializer):
+    """Serializer para pagos de tarjetas de crédito."""
+
+    credit_card_id = serializers.UUIDField()
+    bank_account_id = serializers.UUIDField(required=False, allow_null=True)
+
+    class Meta:
+        model = CreditCardPayment
+        fields = [
+            'id',
+            'credit_card_id',
+            'amount',
+            'currency',
+            'bank_account_id',
+            'date',
+            'description',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def create(self, validated_data):
+        credit_card_id = validated_data.pop('credit_card_id')
+        bank_account_id = validated_data.pop('bank_account_id', None)
+        user = self.context['request'].user
+        validated_data['user'] = user
+
+        # Buscar tarjeta del usuario
+        validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
+
+        # Buscar cuenta bancaria si se proporciona
+        if bank_account_id:
+            validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        credit_card_id = validated_data.pop('credit_card_id', None)
+        bank_account_id = validated_data.pop('bank_account_id', None)
+        user = self.context['request'].user
+
+        if credit_card_id is not None:
+            validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
+
+        if bank_account_id is not None:
+            if bank_account_id:
+                validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+            else:
+                validated_data['bank_account'] = None
+
+        return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['credit_card_id'] = str(instance.credit_card_id) if instance.credit_card_id else None
         data['bank_account_id'] = str(instance.bank_account_id) if instance.bank_account_id else None
         return data
