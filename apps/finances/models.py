@@ -46,7 +46,7 @@ class BankAccount(models.Model):
     )
     add_incomes = models.BooleanField(
         'Sumar ingresos',
-        default=False,
+        default=True,
         help_text='Si está activo, suma los ingresos al saldo'
     )
     balance_updated_at = models.DateTimeField(
