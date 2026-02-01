@@ -16,6 +16,7 @@ class BudgetSerializer(serializers.ModelSerializer):
             'amount',
             'period',
             'start_date',
+            'end_date',
         ]
         read_only_fields = ['id']
 

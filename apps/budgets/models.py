@@ -38,6 +38,7 @@ class Budget(models.Model):
         choices=BudgetPeriod.choices
     )
     start_date = models.DateField('Fecha de inicio')
+    end_date = models.DateField('Fecha de fin', null=True, blank=True)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
 
