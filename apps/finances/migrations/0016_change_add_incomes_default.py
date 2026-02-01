@@ -10,16 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='fixedexpense',
-            name='last_processed_date',
-            field=models.DateField(blank=True, help_text='Fecha del último mes en que se convirtió a gasto real', null=True, verbose_name='Última fecha procesada'),
-        ),
-        migrations.AddField(
-            model_name='fixedincome',
-            name='last_processed_date',
-            field=models.DateField(blank=True, help_text='Fecha del último mes en que se convirtió a ingreso real', null=True, verbose_name='Última fecha procesada'),
-        ),
         migrations.AlterField(
             model_name='bankaccount',
             name='add_incomes',
