@@ -10,6 +10,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
     total_expenses = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_fixed_income = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_fixed_expenses = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_credit_card_payments = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     calculated_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     reset_balance_date = serializers.BooleanField(
         write_only=True,
@@ -33,10 +34,11 @@ class BankAccountSerializer(serializers.ModelSerializer):
             'total_expenses',
             'total_fixed_income',
             'total_fixed_expenses',
+            'total_credit_card_payments',
             'calculated_balance',
             'reset_balance_date',
         ]
-        read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'calculated_balance', 'balance_updated_at']
+        read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'total_credit_card_payments', 'calculated_balance', 'balance_updated_at']
 
     def update(self, instance, validated_data):
         from django.utils import timezone

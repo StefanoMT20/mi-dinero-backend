@@ -119,6 +119,16 @@ class BankAccount(models.Model):
         return total or 0
 
     @property
+    def total_credit_card_payments(self):
+        """Calcula el total de pagos de tarjeta de crédito desde esta cuenta."""
+        from django.db.models import Sum
+        queryset = self.credit_card_payments.filter(currency=self.currency)
+        if self.balance_updated_at:
+            queryset = queryset.filter(created_at__gte=self.balance_updated_at)
+        total = queryset.aggregate(total=Sum('amount'))['total']
+        return total or 0
+
+    @property
     def calculated_balance(self):
         """Calcula el balance según las opciones configuradas."""
         from decimal import Decimal
@@ -126,6 +136,7 @@ class BankAccount(models.Model):
         if self.subtract_expenses:
             result -= Decimal(str(self.total_expenses))
             result -= Decimal(str(self.total_fixed_expenses))
+            result -= Decimal(str(self.total_credit_card_payments))
         if self.add_incomes:
             result += Decimal(str(self.total_income))
             result += Decimal(str(self.total_fixed_income))
