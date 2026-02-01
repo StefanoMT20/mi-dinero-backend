@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.categories.models import Category
-from .models import BankAccount, CreditCard, CreditCardPayment, Expense, FixedExpense, FixedIncome, Income
+from .models import BankAccount, CreditCard, CreditCardPayment, CurrencyExchange, Expense, FixedExpense, FixedIncome, Income
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -11,6 +11,8 @@ class BankAccountSerializer(serializers.ModelSerializer):
     total_fixed_income = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_fixed_expenses = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_credit_card_payments = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_exchanges_out = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_exchanges_in = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     calculated_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     reset_balance_date = serializers.BooleanField(
         write_only=True,
@@ -35,10 +37,12 @@ class BankAccountSerializer(serializers.ModelSerializer):
             'total_fixed_income',
             'total_fixed_expenses',
             'total_credit_card_payments',
+            'total_exchanges_out',
+            'total_exchanges_in',
             'calculated_balance',
             'reset_balance_date',
         ]
-        read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'total_credit_card_payments', 'calculated_balance', 'balance_updated_at']
+        read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'total_credit_card_payments', 'total_exchanges_out', 'total_exchanges_in', 'calculated_balance', 'balance_updated_at']
 
     def update(self, instance, validated_data):
         from django.utils import timezone
@@ -425,4 +429,78 @@ class CreditCardPaymentSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['credit_card_id'] = str(instance.credit_card_id) if instance.credit_card_id else None
         data['bank_account_id'] = str(instance.bank_account_id) if instance.bank_account_id else None
+        return data
+
+
+class CurrencyExchangeSerializer(serializers.ModelSerializer):
+    """Serializer para cambios de divisa."""
+
+    from_account_id = serializers.UUIDField()
+    to_account_id = serializers.UUIDField()
+
+    class Meta:
+        model = CurrencyExchange
+        fields = [
+            'id',
+            'from_account_id',
+            'to_account_id',
+            'amount_from',
+            'amount_to',
+            'exchange_rate',
+            'date',
+            'description',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def validate(self, data):
+        """Valida que las cuentas sean diferentes y de distinta moneda."""
+        from_account_id = data.get('from_account_id')
+        to_account_id = data.get('to_account_id')
+        user = self.context['request'].user
+
+        if from_account_id == to_account_id:
+            raise serializers.ValidationError('Las cuentas origen y destino deben ser diferentes')
+
+        try:
+            from_account = BankAccount.objects.get(id=from_account_id, user=user)
+            to_account = BankAccount.objects.get(id=to_account_id, user=user)
+        except BankAccount.DoesNotExist:
+            raise serializers.ValidationError('Cuenta no encontrada')
+
+        if from_account.currency == to_account.currency:
+            raise serializers.ValidationError('Las cuentas deben tener monedas diferentes')
+
+        return data
+
+    def create(self, validated_data):
+        from_account_id = validated_data.pop('from_account_id')
+        to_account_id = validated_data.pop('to_account_id')
+        user = self.context['request'].user
+        validated_data['user'] = user
+
+        validated_data['from_account'] = BankAccount.objects.get(id=from_account_id, user=user)
+        validated_data['to_account'] = BankAccount.objects.get(id=to_account_id, user=user)
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        from_account_id = validated_data.pop('from_account_id', None)
+        to_account_id = validated_data.pop('to_account_id', None)
+        user = self.context['request'].user
+
+        if from_account_id is not None:
+            validated_data['from_account'] = BankAccount.objects.get(id=from_account_id, user=user)
+
+        if to_account_id is not None:
+            validated_data['to_account'] = BankAccount.objects.get(id=to_account_id, user=user)
+
+        return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['from_account_id'] = str(instance.from_account_id)
+        data['to_account_id'] = str(instance.to_account_id)
+        data['from_currency'] = instance.from_account.currency
+        data['to_currency'] = instance.to_account.currency
         return data

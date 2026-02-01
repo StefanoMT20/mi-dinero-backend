@@ -6,11 +6,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import BankAccount, CreditCard, CreditCardPayment, Expense, FixedExpense, FixedIncome, Income
+from .models import BankAccount, CreditCard, CreditCardPayment, CurrencyExchange, Expense, FixedExpense, FixedIncome, Income
 from .serializers import (
     BankAccountSerializer,
     CreditCardSerializer,
     CreditCardPaymentSerializer,
+    CurrencyExchangeSerializer,
     ExpenseSerializer,
     ExpenseStatsSerializer,
     FixedExpenseSerializer,
@@ -284,5 +285,35 @@ class CreditCardPaymentViewSet(viewsets.ModelViewSet):
 
         if credit_card_id:
             queryset = queryset.filter(credit_card_id=credit_card_id)
+
+        return queryset
+
+
+class CurrencyExchangeViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestionar cambios de divisa."""
+
+    serializer_class = CurrencyExchangeSerializer
+
+    def get_queryset(self):
+        queryset = CurrencyExchange.objects.filter(user=self.request.user).select_related(
+            'from_account', 'to_account'
+        )
+
+        # Filtros
+        month = self.request.query_params.get('month')
+        year = self.request.query_params.get('year')
+        from_account_id = self.request.query_params.get('from_account_id')
+        to_account_id = self.request.query_params.get('to_account_id')
+
+        if month and year:
+            queryset = queryset.filter(date__month=month, date__year=year)
+        elif year:
+            queryset = queryset.filter(date__year=year)
+
+        if from_account_id:
+            queryset = queryset.filter(from_account_id=from_account_id)
+
+        if to_account_id:
+            queryset = queryset.filter(to_account_id=to_account_id)
 
         return queryset

@@ -5,6 +5,7 @@ from .views import (
     BankAccountViewSet,
     CreditCardViewSet,
     CreditCardPaymentViewSet,
+    CurrencyExchangeViewSet,
     ExpenseViewSet,
     FixedExpenseViewSet,
     FixedIncomeViewSet,
@@ -15,6 +16,7 @@ router = DefaultRouter()
 router.register(r'bank-accounts', BankAccountViewSet, basename='bank-account')
 router.register(r'credit-cards', CreditCardViewSet, basename='credit-card')
 router.register(r'credit-card-payments', CreditCardPaymentViewSet, basename='credit-card-payment')
+router.register(r'currency-exchanges', CurrencyExchangeViewSet, basename='currency-exchange')
 router.register(r'expenses', ExpenseViewSet, basename='expense')
 router.register(r'incomes', IncomeViewSet, basename='income')
 router.register(r'fixed-expenses', FixedExpenseViewSet, basename='fixed-expense')

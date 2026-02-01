@@ -129,6 +129,26 @@ class BankAccount(models.Model):
         return total or 0
 
     @property
+    def total_exchanges_out(self):
+        """Calcula el total de cambios de divisa salientes (dinero que sale de esta cuenta)."""
+        from django.db.models import Sum
+        queryset = self.exchanges_out.all()
+        if self.balance_updated_at:
+            queryset = queryset.filter(created_at__gte=self.balance_updated_at)
+        total = queryset.aggregate(total=Sum('amount_from'))['total']
+        return total or 0
+
+    @property
+    def total_exchanges_in(self):
+        """Calcula el total de cambios de divisa entrantes (dinero que entra a esta cuenta)."""
+        from django.db.models import Sum
+        queryset = self.exchanges_in.all()
+        if self.balance_updated_at:
+            queryset = queryset.filter(created_at__gte=self.balance_updated_at)
+        total = queryset.aggregate(total=Sum('amount_to'))['total']
+        return total or 0
+
+    @property
     def calculated_balance(self):
         """Calcula el balance según las opciones configuradas."""
         from decimal import Decimal
@@ -137,9 +157,11 @@ class BankAccount(models.Model):
             result -= Decimal(str(self.total_expenses))
             result -= Decimal(str(self.total_fixed_expenses))
             result -= Decimal(str(self.total_credit_card_payments))
+            result -= Decimal(str(self.total_exchanges_out))
         if self.add_incomes:
             result += Decimal(str(self.total_income))
             result += Decimal(str(self.total_fixed_income))
+            result += Decimal(str(self.total_exchanges_in))
         return result
 
 
@@ -633,3 +655,73 @@ class CreditCardPayment(models.Model):
         else:
             card.used_usd += old_instance.amount
         card.save(update_fields=['used_pen', 'used_usd', 'updated_at'])
+
+
+class CurrencyExchange(models.Model):
+    """Modelo para cambios de divisa entre cuentas."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='currency_exchanges',
+        verbose_name='Usuario'
+    )
+    from_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.CASCADE,
+        related_name='exchanges_out',
+        verbose_name='Cuenta origen'
+    )
+    to_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.CASCADE,
+        related_name='exchanges_in',
+        verbose_name='Cuenta destino'
+    )
+    amount_from = models.DecimalField(
+        'Monto origen',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)],
+        help_text='Monto en la moneda de la cuenta origen'
+    )
+    amount_to = models.DecimalField(
+        'Monto destino',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)],
+        help_text='Monto en la moneda de la cuenta destino'
+    )
+    exchange_rate = models.DecimalField(
+        'Tipo de cambio',
+        max_digits=10,
+        decimal_places=4,
+        validators=[MinValueValidator(0.0001)],
+        help_text='Tipo de cambio aplicado'
+    )
+    date = models.DateField('Fecha del cambio')
+    description = models.CharField(
+        'Descripción',
+        max_length=255,
+        blank=True,
+        default=''
+    )
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Cambio de divisa'
+        verbose_name_plural = 'Cambios de divisa'
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.amount_from} {self.from_account.currency} → {self.amount_to} {self.to_account.currency}"
+
+    def clean(self):
+        """Valida que las cuentas tengan monedas diferentes."""
+        from django.core.exceptions import ValidationError
+        if self.from_account and self.to_account:
+            if self.from_account.currency == self.to_account.currency:
+                raise ValidationError('Las cuentas deben tener monedas diferentes')
+            if self.from_account.user != self.to_account.user:
+                raise ValidationError('Las cuentas deben pertenecer al mismo usuario')
