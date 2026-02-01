@@ -195,6 +195,12 @@ class IncomeSerializer(serializers.ModelSerializer):
 
         if bank_account_id:
             validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+        else:
+            # Auto-asignar cuenta bancaria según la moneda
+            currency = validated_data.get('currency', 'PEN')
+            bank_account = BankAccount.objects.filter(user=user, currency=currency).first()
+            if bank_account:
+                validated_data['bank_account'] = bank_account
 
         return super().create(validated_data)
 
@@ -256,9 +262,14 @@ class FixedExpenseSerializer(serializers.ModelSerializer):
 
         if credit_card_id:
             validated_data['credit_card'] = CreditCard.objects.get(id=credit_card_id, user=user)
-
-        if bank_account_id:
+        elif bank_account_id:
             validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+        else:
+            # Auto-asignar cuenta bancaria según la moneda
+            currency = validated_data.get('currency', 'PEN')
+            bank_account = BankAccount.objects.filter(user=user, currency=currency).first()
+            if bank_account:
+                validated_data['bank_account'] = bank_account
 
         return super().create(validated_data)
 
@@ -325,6 +336,12 @@ class FixedIncomeSerializer(serializers.ModelSerializer):
 
         if bank_account_id:
             validated_data['bank_account'] = BankAccount.objects.get(id=bank_account_id, user=user)
+        else:
+            # Auto-asignar cuenta bancaria según la moneda
+            currency = validated_data.get('currency', 'PEN')
+            bank_account = BankAccount.objects.filter(user=user, currency=currency).first()
+            if bank_account:
+                validated_data['bank_account'] = bank_account
 
         return super().create(validated_data)
 
