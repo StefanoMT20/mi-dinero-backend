@@ -165,6 +165,49 @@ class FixedExpenseViewSet(viewsets.ModelViewSet):
             'credit_card', 'bank_account', 'category'
         )
 
+    @action(detail=False, methods=['post'])
+    def process_pending(self, request):
+        """Convierte gastos fijos pendientes en gastos reales."""
+        today = timezone.now().date()
+        current_month_start = today.replace(day=1)
+
+        # Buscar gastos fijos que:
+        # 1. Estén activos
+        # 2. Su día del mes ya pasó o es hoy
+        # 3. No se hayan procesado este mes
+        pending_fixed = FixedExpense.objects.filter(
+            user=request.user,
+            is_active=True,
+            day_of_month__lte=today.day
+        ).exclude(
+            last_processed_date__gte=current_month_start
+        )
+
+        created_expenses = []
+        for fixed in pending_fixed:
+            # Crear el gasto real
+            expense_date = today.replace(day=min(fixed.day_of_month, today.day))
+            expense = Expense.objects.create(
+                user=request.user,
+                amount=fixed.amount,
+                currency=fixed.currency,
+                category=fixed.category,
+                description=f"{fixed.name} (Fijo)",
+                date=expense_date,
+                credit_card=fixed.credit_card,
+                bank_account=fixed.bank_account,
+            )
+            created_expenses.append(expense.id)
+
+            # Marcar como procesado
+            fixed.last_processed_date = today
+            fixed.save(update_fields=['last_processed_date'])
+
+        return Response({
+            'processed': len(created_expenses),
+            'expense_ids': [str(id) for id in created_expenses]
+        })
+
 
 class FixedIncomeViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar ingresos fijos."""
@@ -175,6 +218,48 @@ class FixedIncomeViewSet(viewsets.ModelViewSet):
         return FixedIncome.objects.filter(user=self.request.user).select_related(
             'bank_account', 'category'
         )
+
+    @action(detail=False, methods=['post'])
+    def process_pending(self, request):
+        """Convierte ingresos fijos pendientes en ingresos reales."""
+        today = timezone.now().date()
+        current_month_start = today.replace(day=1)
+
+        # Buscar ingresos fijos que:
+        # 1. Estén activos
+        # 2. Su día del mes ya pasó o es hoy
+        # 3. No se hayan procesado este mes
+        pending_fixed = FixedIncome.objects.filter(
+            user=request.user,
+            is_active=True,
+            day_of_month__lte=today.day
+        ).exclude(
+            last_processed_date__gte=current_month_start
+        )
+
+        created_incomes = []
+        for fixed in pending_fixed:
+            # Crear el ingreso real
+            income_date = today.replace(day=min(fixed.day_of_month, today.day))
+            income = Income.objects.create(
+                user=request.user,
+                amount=fixed.amount,
+                currency=fixed.currency,
+                category=fixed.category,
+                description=f"{fixed.name} (Fijo)",
+                date=income_date,
+                bank_account=fixed.bank_account,
+            )
+            created_incomes.append(income.id)
+
+            # Marcar como procesado
+            fixed.last_processed_date = today
+            fixed.save(update_fields=['last_processed_date'])
+
+        return Response({
+            'processed': len(created_incomes),
+            'income_ids': [str(id) for id in created_incomes]
+        })
 
 
 class CreditCardPaymentViewSet(viewsets.ModelViewSet):

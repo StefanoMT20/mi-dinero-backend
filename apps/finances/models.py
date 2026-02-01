@@ -88,47 +88,53 @@ class BankAccount(models.Model):
 
     @property
     def total_fixed_income(self):
-        """Calcula el total de ingresos fijos que ya deberían haberse aplicado este mes."""
+        """Calcula el total de ingresos fijos PENDIENTES de este mes (aún no procesados)."""
         from django.db.models import Sum
         from django.utils import timezone
         today = timezone.now().date()
-        current_day = today.day
+        current_month_start = today.replace(day=1)
 
-        # Sumar ingresos fijos activos cuyo día del mes ya pasó o es hoy
+        # Sumar ingresos fijos activos cuyo día aún no llegó Y no han sido procesados este mes
         total = self.fixed_incomes.filter(
             currency=self.currency,
             is_active=True,
-            day_of_month__lte=current_day
+            day_of_month__gt=today.day  # Solo los que aún no llegó su día
+        ).exclude(
+            last_processed_date__gte=current_month_start  # Excluir ya procesados
         ).aggregate(total=Sum('amount'))['total']
         return total or 0
 
     @property
     def total_fixed_expenses(self):
-        """Calcula el total de gastos fijos que ya deberían haberse aplicado este mes."""
+        """Calcula el total de gastos fijos PENDIENTES de este mes (aún no procesados)."""
         from django.db.models import Sum
         from django.utils import timezone
         today = timezone.now().date()
-        current_day = today.day
+        current_month_start = today.replace(day=1)
 
-        # Sumar gastos fijos activos cuyo día del mes ya pasó o es hoy
+        # Sumar gastos fijos activos cuyo día aún no llegó Y no han sido procesados este mes
         total = self.fixed_expenses.filter(
             currency=self.currency,
             is_active=True,
-            day_of_month__lte=current_day
+            day_of_month__gt=today.day  # Solo los que aún no llegó su día
+        ).exclude(
+            last_processed_date__gte=current_month_start  # Excluir ya procesados
         ).aggregate(total=Sum('amount'))['total']
         return total or 0
 
     @property
     def calculated_balance(self):
-        """Calcula el balance según las opciones configuradas."""
+        """Calcula el balance según las opciones configuradas.
+
+        Nota: Los ingresos/gastos fijos ya NO se suman aquí porque se convierten
+        automáticamente en ingresos/gastos reales cuando pasa su fecha.
+        """
         from decimal import Decimal
         result = Decimal(str(self.balance))
         if self.subtract_expenses:
             result -= Decimal(str(self.total_expenses))
-            result -= Decimal(str(self.total_fixed_expenses))
         if self.add_incomes:
             result += Decimal(str(self.total_income))
-            result += Decimal(str(self.total_fixed_income))
         return result
 
 
@@ -370,6 +376,12 @@ class FixedExpense(models.Model):
         verbose_name='Cuenta bancaria'
     )
     is_active = models.BooleanField('Activo', default=True)
+    last_processed_date = models.DateField(
+        'Última fecha procesada',
+        null=True,
+        blank=True,
+        help_text='Fecha del último mes en que se convirtió a gasto real'
+    )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
 
@@ -489,6 +501,12 @@ class FixedIncome(models.Model):
         verbose_name='Cuenta bancaria'
     )
     is_active = models.BooleanField('Activo', default=True)
+    last_processed_date = models.DateField(
+        'Última fecha procesada',
+        null=True,
+        blank=True,
+        help_text='Fecha del último mes en que se convirtió a ingreso real'
+    )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
 
