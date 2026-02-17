@@ -14,6 +14,7 @@ from .serializers import (
     CurrencyExchangeSerializer,
     ExpenseSerializer,
     ExpenseStatsSerializer,
+    FinancialSummarySerializer,
     FixedExpenseSerializer,
     FixedIncomeSerializer,
     IncomeSerializer,
@@ -125,6 +126,50 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         }
 
         serializer = ExpenseStatsSerializer(data)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Resumen financiero general separado por moneda (PEN/USD)."""
+        now = timezone.now()
+        month = int(request.query_params.get('month', now.month))
+        year = int(request.query_params.get('year', now.year))
+
+        # Gastos agrupados por moneda
+        expense_totals = Expense.objects.filter(
+            user=request.user,
+            date__month=month,
+            date__year=year
+        ).values('currency').annotate(total=Sum('amount'))
+
+        expenses_by_currency = {item['currency']: item['total'] for item in expense_totals}
+
+        # Ingresos agrupados por moneda
+        income_totals = Income.objects.filter(
+            user=request.user,
+            date__month=month,
+            date__year=year
+        ).values('currency').annotate(total=Sum('amount'))
+
+        incomes_by_currency = {item['currency']: item['total'] for item in income_totals}
+
+        expenses_pen = expenses_by_currency.get('PEN', Decimal('0'))
+        expenses_usd = expenses_by_currency.get('USD', Decimal('0'))
+        incomes_pen = incomes_by_currency.get('PEN', Decimal('0'))
+        incomes_usd = incomes_by_currency.get('USD', Decimal('0'))
+
+        data = {
+            'month': month,
+            'year': year,
+            'expenses_pen': expenses_pen,
+            'expenses_usd': expenses_usd,
+            'incomes_pen': incomes_pen,
+            'incomes_usd': incomes_usd,
+            'balance_pen': incomes_pen - expenses_pen,
+            'balance_usd': incomes_usd - expenses_usd,
+        }
+
+        serializer = FinancialSummarySerializer(data)
         return Response(serializer.data)
 
 

@@ -170,6 +170,19 @@ class ExpenseStatsSerializer(serializers.Serializer):
     year = serializers.IntegerField()
 
 
+class FinancialSummarySerializer(serializers.Serializer):
+    """Serializer para resumen financiero general separado por moneda."""
+
+    month = serializers.IntegerField()
+    year = serializers.IntegerField()
+    expenses_pen = serializers.DecimalField(max_digits=12, decimal_places=2)
+    expenses_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
+    incomes_pen = serializers.DecimalField(max_digits=12, decimal_places=2)
+    incomes_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
+    balance_pen = serializers.DecimalField(max_digits=12, decimal_places=2)
+    balance_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
 class IncomeSerializer(serializers.ModelSerializer):
     """Serializer para ingresos."""
 
