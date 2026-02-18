@@ -161,13 +161,22 @@ class ExpenseSerializer(serializers.ModelSerializer):
         return data
 
 
-class ExpenseStatsSerializer(serializers.Serializer):
-    """Serializer para estadísticas de gastos."""
+class CurrencyStatsSerializer(serializers.Serializer):
+    """Estadísticas de gastos para una moneda específica."""
 
-    monthly_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    bank_account = serializers.DecimalField(max_digits=12, decimal_places=2)
+    credit_card = serializers.DecimalField(max_digits=12, decimal_places=2)
     by_category = serializers.DictField(child=serializers.DecimalField(max_digits=12, decimal_places=2))
+
+
+class ExpenseStatsSerializer(serializers.Serializer):
+    """Serializer para estadísticas de gastos separadas por moneda y tipo."""
+
     month = serializers.IntegerField()
     year = serializers.IntegerField()
+    pen = CurrencyStatsSerializer()
+    usd = CurrencyStatsSerializer()
 
 
 class FinancialSummarySerializer(serializers.Serializer):

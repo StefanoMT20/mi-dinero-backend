@@ -100,7 +100,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        """Estadísticas de gastos del mes actual o especificado."""
+        """Estadísticas de gastos del mes separadas por moneda y tipo (tarjeta/cuenta)."""
         now = timezone.now()
         month = int(request.query_params.get('month', now.month))
         year = int(request.query_params.get('year', now.year))
@@ -111,18 +111,27 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             date__year=year
         ).select_related('category')
 
-        monthly_total = expenses.aggregate(total=Sum('amount'))['total'] or 0
+        def build_currency_stats(queryset):
+            total = queryset.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            bank_total = queryset.filter(credit_card__isnull=True).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            card_total = queryset.filter(credit_card__isnull=False).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        by_category = {}
-        category_totals = expenses.values('category__id', 'category__name').annotate(total=Sum('amount'))
-        for item in category_totals:
-            by_category[item['category__name']] = item['total']
+            by_category = {}
+            for item in queryset.values('category__name').annotate(total=Sum('amount')):
+                by_category[item['category__name'] or 'Sin categoría'] = item['total']
+
+            return {
+                'total': total,
+                'bank_account': bank_total,
+                'credit_card': card_total,
+                'by_category': by_category,
+            }
 
         data = {
-            'monthly_total': monthly_total,
-            'by_category': by_category,
             'month': month,
             'year': year,
+            'pen': build_currency_stats(expenses.filter(currency='PEN')),
+            'usd': build_currency_stats(expenses.filter(currency='USD')),
         }
 
         serializer = ExpenseStatsSerializer(data)
