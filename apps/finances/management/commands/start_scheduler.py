@@ -4,6 +4,11 @@ Corre como proceso independiente dentro del mismo contenedor.
 
 Uso:
     python manage.py start_scheduler
+
+Lógica del job (corre días 1 y 16 de cada mes):
+- Revisa el mes actual Y el mes anterior para no perder gastos del 17-31.
+- Un gasto fijo con day_of_month=25 no se procesa hasta que el día 25 haya llegado.
+- Solo se procesa UNA vez por mes (tracking via last_processed_date = target_date).
 """
 import calendar
 import logging
@@ -25,57 +30,87 @@ def last_day_of_month(d):
     return calendar.monthrange(d.year, d.month)[1]
 
 
+def _already_processed_in_month(last_processed_date, month_start):
+    """Verifica si el gasto ya fue procesado para el mes dado."""
+    if not last_processed_date:
+        return False
+    next_month = add_months(month_start, 1)
+    return month_start <= last_processed_date < next_month
+
+
+def _get_pending_months(fixed, today):
+    """
+    Retorna las fechas target pendientes de procesar.
+    Revisa el mes anterior y el mes actual para cubrir todos los day_of_month (1-31).
+    """
+    current_month_start = today.replace(day=1)
+    prev_month_start = add_months(current_month_start, -1)
+    pending = []
+
+    for month_start in [prev_month_start, current_month_start]:
+        day = min(fixed.day_of_month, last_day_of_month(month_start))
+        target_date = month_start.replace(day=day)
+
+        # Requisito 2 y 3: solo si la fecha ya llegó o pasó
+        if target_date > today:
+            continue
+
+        # Requisito 4: solo una vez por mes
+        if _already_processed_in_month(fixed.last_processed_date, month_start):
+            continue
+
+        pending.append(target_date)
+
+    return pending
+
+
 def process_fixed_transactions():
     """Procesa todos los gastos e ingresos fijos pendientes para todos los usuarios."""
     from apps.finances.models import FixedExpense, FixedIncome, Expense, Income
 
     today = date.today()
-    current_month_start = today.replace(day=1)
     total_expenses = 0
     total_incomes = 0
 
-    for fixed in FixedExpense.objects.filter(is_active=True).select_related('user', 'category', 'credit_card', 'bank_account'):
-        if fixed.last_processed_date and fixed.last_processed_date >= current_month_start:
-            continue
-        day = min(fixed.day_of_month, last_day_of_month(current_month_start))
-        target_date = current_month_start.replace(day=day)
-        if target_date > today:
-            continue
-        Expense.objects.create(
-            user=fixed.user,
-            amount=fixed.amount,
-            currency=fixed.currency,
-            category=fixed.category,
-            description=f"{fixed.name} (Fijo)",
-            date=target_date,
-            credit_card=fixed.credit_card,
-            bank_account=fixed.bank_account,
-        )
-        fixed.last_processed_date = today
-        fixed.save(update_fields=['last_processed_date'])
-        total_expenses += 1
+    for fixed in FixedExpense.objects.filter(is_active=True).select_related(
+        'user', 'category', 'credit_card', 'bank_account'
+    ):
+        for target_date in _get_pending_months(fixed, today):
+            Expense.objects.create(
+                user=fixed.user,
+                amount=fixed.amount,
+                currency=fixed.currency,
+                category=fixed.category,
+                description=f"{fixed.name} (Fijo)",
+                date=target_date,
+                credit_card=fixed.credit_card,
+                bank_account=fixed.bank_account,
+            )
+            # Guardamos target_date (no today) para el tracking correcto por mes
+            fixed.last_processed_date = target_date
+            fixed.save(update_fields=['last_processed_date'])
+            total_expenses += 1
+            logger.info(f"Gasto fijo procesado: {fixed.name} - {target_date}")
 
-    for fixed in FixedIncome.objects.filter(is_active=True).select_related('user', 'category', 'bank_account'):
-        if fixed.last_processed_date and fixed.last_processed_date >= current_month_start:
-            continue
-        day = min(fixed.day_of_month, last_day_of_month(current_month_start))
-        target_date = current_month_start.replace(day=day)
-        if target_date > today:
-            continue
-        Income.objects.create(
-            user=fixed.user,
-            amount=fixed.amount,
-            currency=fixed.currency,
-            category=fixed.category,
-            description=f"{fixed.name} (Fijo)",
-            date=target_date,
-            bank_account=fixed.bank_account,
-        )
-        fixed.last_processed_date = today
-        fixed.save(update_fields=['last_processed_date'])
-        total_incomes += 1
+    for fixed in FixedIncome.objects.filter(is_active=True).select_related(
+        'user', 'category', 'bank_account'
+    ):
+        for target_date in _get_pending_months(fixed, today):
+            Income.objects.create(
+                user=fixed.user,
+                amount=fixed.amount,
+                currency=fixed.currency,
+                category=fixed.category,
+                description=f"{fixed.name} (Fijo)",
+                date=target_date,
+                bank_account=fixed.bank_account,
+            )
+            fixed.last_processed_date = target_date
+            fixed.save(update_fields=['last_processed_date'])
+            total_incomes += 1
+            logger.info(f"Ingreso fijo procesado: {fixed.name} - {target_date}")
 
-    logger.info(f"Procesados: {total_expenses} gastos y {total_incomes} ingresos")
+    logger.info(f"Job completado: {total_expenses} gastos y {total_incomes} ingresos procesados")
 
 
 class Command(BaseCommand):
@@ -98,7 +133,9 @@ class Command(BaseCommand):
             replace_existing=True,
         )
 
-        self.stdout.write(self.style.SUCCESS('Scheduler iniciado. Corre los días 1 y 16 de cada mes a las 6am.'))
+        self.stdout.write(self.style.SUCCESS(
+            'Scheduler iniciado. Corre los días 1 y 16 de cada mes a las 6am (Lima).'
+        ))
         try:
             scheduler.start()
         except KeyboardInterrupt:

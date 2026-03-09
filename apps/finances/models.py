@@ -88,33 +88,37 @@ class BankAccount(models.Model):
 
     @property
     def total_fixed_income(self):
-        """Calcula el total de ingresos fijos que ya deberían haberse aplicado este mes."""
+        """Calcula el total de ingresos fijos pendientes (aún no convertidos en ingreso real este mes)."""
         from django.db.models import Sum
         from django.utils import timezone
         today = timezone.now().date()
-        current_day = today.day
+        current_month_start = today.replace(day=1)
 
-        # Sumar ingresos fijos activos cuyo día del mes ya pasó o es hoy
+        # Solo los que su día ya llegó Y no han sido procesados este mes
         total = self.fixed_incomes.filter(
             currency=self.currency,
             is_active=True,
-            day_of_month__lte=current_day
+            day_of_month__lte=today.day
+        ).exclude(
+            last_processed_date__gte=current_month_start
         ).aggregate(total=Sum('amount'))['total']
         return total or 0
 
     @property
     def total_fixed_expenses(self):
-        """Calcula el total de gastos fijos que ya deberían haberse aplicado este mes."""
+        """Calcula el total de gastos fijos pendientes (aún no convertidos en gasto real este mes)."""
         from django.db.models import Sum
         from django.utils import timezone
         today = timezone.now().date()
-        current_day = today.day
+        current_month_start = today.replace(day=1)
 
-        # Sumar gastos fijos activos cuyo día del mes ya pasó o es hoy
+        # Solo los que su día ya llegó Y no han sido procesados este mes
         total = self.fixed_expenses.filter(
             currency=self.currency,
             is_active=True,
-            day_of_month__lte=current_day
+            day_of_month__lte=today.day
+        ).exclude(
+            last_processed_date__gte=current_month_start
         ).aggregate(total=Sum('amount'))['total']
         return total or 0
 
