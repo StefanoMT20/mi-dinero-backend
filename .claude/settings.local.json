@@ -7,7 +7,16 @@
       "Bash(./venv/Scripts/django-admin.exe:*)",
       "Bash(./venv/Scripts/python.exe manage.py:*)",
       "Bash(find:*)",
-      "Bash(python manage.py makemigrations:*)"
+      "Bash(python manage.py makemigrations:*)",
+      "Bash(tree -L 2:*)",
+      "Bash(python manage.py:*)",
+      "Bash(del \"c:\\\\Users\\\\PIERO\\\\Desktop\\\\organizacion\\\\apps\\\\finances\\\\migrations\\\\0007_alter_expense_category_alter_fixedexpense_category_and_more.py\")",
+      "Read(//c/Users/PIERO/Desktop/mi-dinero-f-cil/**)",
+      "Bash(xargs:*)",
+      "Bash(wait:*)",
+      "Bash(python:*)",
+      "Bash(sqlite3:*)",
+      "Bash(pip show:*)"
     ]
   }
 }

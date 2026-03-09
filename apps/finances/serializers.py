@@ -44,6 +44,10 @@ class BankAccountSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'total_income', 'total_expenses', 'total_fixed_income', 'total_fixed_expenses', 'total_credit_card_payments', 'total_exchanges_out', 'total_exchanges_in', 'calculated_balance', 'balance_updated_at']
 
+    def create(self, validated_data):
+        validated_data.pop('reset_balance_date', None)
+        return super().create(validated_data)
+
     def update(self, instance, validated_data):
         from django.utils import timezone
         reset_balance_date = validated_data.pop('reset_balance_date', False)
