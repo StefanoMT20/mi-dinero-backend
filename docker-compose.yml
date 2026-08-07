@@ -19,6 +19,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    volumes:
+      - media_volume:/app/media
     environment:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - DEBUG=${DEBUG:-False}
@@ -55,3 +57,4 @@ services:
 
 volumes:
   postgres_data:
+  media_volume:

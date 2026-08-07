@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/', include('apps.budgets.urls')),
     path('api/', include('apps.installments.urls')),
     path('api/', include('apps.categories.urls')),
+    path('api/araceli/', include('apps.araceli.urls')),
     path('api/settings/', UserSettingsView.as_view(), name='user_settings'),
 ]
 
